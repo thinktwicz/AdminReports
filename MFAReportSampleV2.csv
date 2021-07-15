@@ -1,3 +1,17 @@
 UPN, DisplayName, DefaultMethodType, HasAppPushNotifications, MS AuthApp, Other AuthApp, MultipleMSAuthApps, MultipleAuthApps, OfficeLocaiton, MFAMethodID, MethodsDisplayName, MethodDeviceTag, MethodCreatedDate, MethodEmail, MicrosoftMethodType
-user@domain,First and Last Name, SMS, True/Null, True/Null, True/Null, Count MS Auth, Count Auth, Office, ,,,,,
-,,,,,,,,,Per ID for Every Method on User, Per Method Display, Per Method Device Tag, Per Method Created Date, Per Method Email, Per Method Type
+user1@domain,First and Last Name, SMS, True/Null, True/Null, True/Null, Count MS Auth, Count Auth, Office, ,,,,,
+user1@domain,,,,,,,,,Per ID for Every Method on User, Per Method Display, Per Method Device Tag, Per Method Created Date, Per Method Email, Per Method Type
+user1@domain,,,,,,,,,Per ID for Every Method on User, Per Method Display, Per Method Device Tag, Per Method Created Date, Per Method Email, Per Method Type
+user1@domain,,,,,,,,,Per ID for Every Method on User, Per Method Display, Per Method Device Tag, Per Method Created Date, Per Method Email, Per Method Type
+user2@domain,First and Last Name, SMS, True/Null, True/Null, True/Null, Count MS Auth, Count Auth, Office, ,,,,,
+user2@domain,,,,,,,,,Per ID for Every Method on User, Per Method Display, Per Method Device Tag, Per Method Created Date, Per Method Email, Per Method Type
+user3@domain,First and Last Name, SMS, True/Null, True/Null, True/Null, Count MS Auth, Count Auth, Office, ,,,,,
+user3@domain,,,,,,,,,Per ID for Every Method on User, Per Method Display, Per Method Device Tag, Per Method Created Date, Per Method Email, Per Method Type
+user3@domain,,,,,,,,,Per ID for Every Method on User, Per Method Display, Per Method Device Tag, Per Method Created Date, Per Method Email, Per Method Type
+user3@domain,,,,,,,,,Per ID for Every Method on User, Per Method Display, Per Method Device Tag, Per Method Created Date, Per Method Email, Per Method Type
+user3@domain,,,,,,,,,Per ID for Every Method on User, Per Method Display, Per Method Device Tag, Per Method Created Date, Per Method Email, Per Method Type
+user3@domain,,,,,,,,,Per ID for Every Method on User, Per Method Display, Per Method Device Tag, Per Method Created Date, Per Method Email, Per Method Type
+user3@domain,,,,,,,,,Per ID for Every Method on User, Per Method Display, Per Method Device Tag, Per Method Created Date, Per Method Email, Per Method Type
+user3@domain,,,,,,,,,Per ID for Every Method on User, Per Method Display, Per Method Device Tag, Per Method Created Date, Per Method Email, Per Method Type
+user4@domain,First and Last Name, SMS, True/Null, True/Null, True/Null, Count MS Auth, Count Auth, Office, ,,,,,
+user5@domain,First and Last Name, SMS, True/Null, True/Null, True/Null, Count MS Auth, Count Auth, Office, ,,,,,
