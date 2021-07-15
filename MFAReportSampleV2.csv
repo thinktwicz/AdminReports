@@ -1,3 +1,3 @@
 UPN, DisplayName, DefaultMethodType, HasAppPushNotifications, MS AuthApp, Other AuthApp, MultipleMSAuthApps, MultipleAuthApps, OfficeLocaiton, MFAMethodID, MethodsDisplayName, MethodDeviceTag, MethodCreatedDate, MethodEmail, MicrosoftMethodType
-user@domain,First and Last Name, SMS, True/Null, True/Null, True/Null, Ture/Null, Count MS Auth, Count Auth, Office, ,,,,,,
+user@domain,First and Last Name, SMS, True/Null, True/Null, True/Null, Ture/Null, Count MS Auth, Count Auth, Office,,,,,
 ,,,,,,,,,Per ID for Every Method on User, Per Method Display, Per Method Device Tag, Per Method Created Date, Per Method Email, Per Method Type
