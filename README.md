@@ -4,4 +4,8 @@
 
 # DSC on User MFA this report counts the number of devices/method information for a user and what they are set to we can no alert,fix,delete,revoke,allow if you want
 
-# 
+# Send out Emails
+# Store list of user to methods 
+# Way to approve/attest to them
+# Alert when new new method is made
+
