@@ -1,0 +1,34 @@
+
+https://www.powershellgallery.com/packages/MSAL.PS/4.14.0.1
+
+$targetFile = "c:\temp\file.csv"
+#remove any version 
+rm $targetFile -ErrorAction SilentlyContinue
+Add-Content $targetFile "DisplayName, UPN, DirSyncEnabled, UserType, LastLoginTime, LastLoginAppName, LastPasswordChange, PasswordAge, PasswordNeverExpire"
+
+$UPN = $user.UserPrincipalName.ToString()
+    $ObjectID = $user.ObjectId.ToString()
+
+    Write-Host "User" $UPN "Count" $count
+    
+
+    $AzureADInfo = Get-AzureADUser -ObjectId $ObjectID | Select-Object DirSyncEnabled,UserType, @{N="PasswordNeverExpires";E={$_.PasswordPolicies -contains "DisablePasswordExpiration"}}
+    $AzureAudit = Get-AzureADAuditSignInLogs -Top 1 -Filter "userPrincipalName eq '$UPN'" | select CreatedDateTime,AppDisplayName
+    $MSOLInfo = Get-MsolUser -ObjectId $ObjectID | select DisplayName, LastPasswordChangeTimeStamp,@{Name=”PasswordAge”;Expression={(Get-Date)-$_.LastPasswordChangeTimeStamp}} 
+##########
+    #
+    # build report
+    #
+    ##########
+    $DisplayName = $user.DisplayName.ToString()
+    $cUPN = $user.UserPrincipalName.ToString()
+    $DirSync = $AzureADInfo.DirSyncEnabled
+    $UserType = $AzureADInfo.UserType
+    $LastLogin = $AzureAudit.CreatedDateTime
+    $LastLogApp = $AzureAudit.AppDisplayName
+    $LastPWD = $MSOLInfo.LastPasswordChangeTimestamp
+    $PWDAge = $MSOLInfo.PasswordAge
+    $PWDExpire = $AzureADInfo.PasswordNeverExpires
+
+    $line = "$DisplayName,$cUPN,$DirSync,$UserType,$LastLogin,$LastLogApp,$LastPWD,$PWDAge,$PWDExpire"
+    Add-Content $targetFile $line
