@@ -1,0 +1,767 @@
+<#
+
+phoneNumber
+phoneType
+ADOffice
+ADMobile
+
+UPN, DisplayName, DefaultMethodType, HasAppPushNotifications, MS AuthApp, Other AuthApp, MultipleMSAuthApps, MultipleAuthApps, OfficeLocaiton, MFAMethodID, MethodsDisplayName, MethodDeviceTag, MethodCreatedDate, MethodEmail, MicrosoftMethodType
+
+https://docs.microsoft.com/en-us/graph/api/user-get?view=graph-rest-1.0&tabs=http
+https://graph.microsoft.com/v1.0/users/
+"businessPhones": [
+        ""
+    ],
+    "displayName": "",
+    "givenName": "",
+    "jobTitle": "",
+    "mail": "",
+    "mobilePhone": "",
+
+Application	User.Read.All, User.ReadWrite.All, Directory.Read.All, Directory.ReadWrite.All
+Directory.AccessAsUser.All
+
+https://docs.microsoft.com/en-us/graph/api/resources/authenticationmethods-overview?view=graph-rest-1.0
+delegate - UserAuthenticationMethod.Read.All, UserAuthenticationMethod.ReadWrite.All
+
+
+TODO: 
+Add in the 6 items and logic checks to files
+methodMobileToADPhone
+methodMobileToADOffice
+methodaltToADPhone
+methodaltToADOffice
+methodOfficeToADPhone
+methodOfficeToADOffice
+
+
+
+#>
+
+#bring in the mods
+Import-module MSAL.PS
+Import-Module ImportExcel
+
+
+Write-Host "Creating Files" -BackgroundColor:Magenta -ForegroundColor:Green
+<#
+
+#>
+$xlFullFileNamePath = "" #line 65
+$csvFullFileNamePath = "" #line 109
+$csvErrorLookupPath = "" #line 126
+$ClientAppID = "" #line 145
+$DirectoryTenantID = "" #line 146
+# csv,etc, that has users displayname,userPrincipalName 
+$UserListPath = "" #line 208
+#############
+#
+# xlsx file
+#
+#############
+
+$File = @()
+
+$xlFile = $xlFullFileNamePath
+Remove-Item $xlFile -ErrorAction Ignore
+<#
+$FileData = New-Object psobject
+$FileData | add-member -MemberType NoteProperty -Name LicenseGroup -Value $UserLicenseGroup
+$FileData | add-member -MemberType NoteProperty -Name UPN -Value 
+$FileData | add-member -MemberType NoteProperty -Name DisplayName -Value
+$FileData | add-member -MemberType NoteProperty -Name ADUserPhoneNumber -Value 
+$FileData | add-member -MemberType NoteProperty -Name ADUserOfficeNumber -Value
+$FileData | add-member -MemberType NoteProperty -Name ADAlternateEmail -Value  
+$FileData | add-member -MemberType NoteProperty -Name DefaultMethodType -Value 
+$FileData | add-member -MemberType NoteProperty -Name HasAppPushNotifications -Value 
+$FileData | add-member -MemberType NoteProperty -Name MS AuthApp -Value 
+$FileData | add-member -MemberType NoteProperty -Name Other AuthApp -Value 
+$FileData | add-member -MemberType NoteProperty -Name MultipleMSAuthApps -Value 
+$FileData | add-member -MemberType NoteProperty -Name MultipleAuthApps -Value 
+$FileData | add-member -MemberType NoteProperty -Name OfficeLocaiton -Value 
+$FileData | add-member -MemberType NoteProperty -Name MFAMethodID -Value 
+$FileData | add-member -MemberType NoteProperty -Name MethodsDisplayName -Value 
+$FileData | add-member -MemberType NoteProperty -Name MethodDeviceTag -Value 
+$FileData | add-member -MemberType NoteProperty -Name MethodCreatedDate -Value 
+$FileData | add-member -MemberType NoteProperty -Name MethodEmail -Value 
+$FileData | add-member -MemberType NoteProperty -Name MicrosoftMethodType -Value 
+$FileData | add-member -MemberType NoteProperty -Name MethodPhoneNumber -Value 
+$FileData | add-member -MemberType NoteProperty -Name MethodPhoneType -Value 
+#>
+
+#############
+#
+# 
+#
+#############
+
+#############
+#
+# csv file
+#
+#############
+<#
+LicenseGroup,UPN, DisplayName, ADUserPhoneNumber, ADUserOfficeNumber, ADAlternateEmail, DefaultMethodType, HasAppPushNotifications, MS AuthApp, Other AuthApp, MultipleMSAuthApps, MultipleAuthApps, OfficeLocaiton,
+ MFAMethodID, MethodsDisplayName, MethodDeviceTag, MethodCreatedDate, MethodEmail, MicrosoftMethodType, MethodPhoneNumber, MethodPhoneType
+#>
+
+#make a filepath
+$targetFile = $csvFullFileNamePath
+#remove any version 
+rm $targetFile -ErrorAction SilentlyContinue
+Add-Content $targetFile "LicenseGroup,UPN, DisplayName, ADUserPhoneNumber, ADUserOfficeNumber, ADAlternateEmail, DefaultMethodType, HasAppPushNotifications, MS AuthApp, Other AuthApp, MultipleMSAuthApps, MultipleAuthApps, OfficeLocaiton, MFAMethodID, MethodsDisplayName, MethodDeviceTag, MethodCreatedDate, MethodEmail, MicrosoftMethodType, MethodPhoneNumber, MethodPhoneType"
+
+#############
+#
+# 
+#
+#############
+
+#############
+#
+# Error Report on bad lookup in MSOL
+#
+#############
+#make a filepath
+$targetFile1 = $csvErrorLookupPath
+#remove any version 
+rm $targetFile1 -ErrorAction SilentlyContinue
+Add-Content $targetFile1 "UPN"
+
+#############
+#
+# 
+#
+#############
+
+Write-Host "Created" -BackgroundColor:Green -ForegroundColor:Blue
+
+#############
+#
+# Azure App Connection and Helpers
+#
+#############
+
+$clientid = $ClientAppID
+$tenantid = $DirectoryTenantID
+
+Write-Host "Getting GraphAPI Onbehalf Token" -BackgroundColor:Magenta -ForegroundColor:Green
+
+$MSALtoken = Get-MsalToken -Interactive -ClientId $clientID -TenantId $tenantID
+
+Write-Host "Token Granted" -BackgroundColor:Green -ForegroundColor:Blue
+
+function RefreshToken()
+{
+    return $MSALtoken = Get-MsalToken -ForceRefresh -ClientId $clientID -TenantId $tenantID
+}
+
+#############
+#
+# 
+#
+#############
+
+#############
+#
+# Script Time things
+#
+#############
+
+$ScriptRunTime = Get-Date
+$TokenRefreshTime = Get-Date
+
+#############
+#
+# 
+#
+#############
+
+
+#############
+#
+# MSOL Connection
+#
+#############
+Write-Host "Connecting to MSOL Service" -BackgroundColor:Magenta -ForegroundColor:Green
+
+# used to get defualt method
+Connect-MsolService
+
+Write-Host "Connected" -BackgroundColor:Green -ForegroundColor:Blue
+
+#############
+#
+# 
+#
+#############
+
+Write-Host "Importing User List and Starting" -BackgroundColor:Magenta -ForegroundColor:Green
+
+
+#############
+#
+# Importing Users List
+#
+#############
+# user list we check against 
+$list = Import-Csv $UserListPath
+$count = 0
+$refreshOpCount = 0
+# going to revoke
+#Connect-AzureAD
+
+$SkipErroredUser = $false
+
+foreach($user in $list)
+{
+    $SkipErroredUser = $false
+            
+    Write-Host "Count" $count "checking user" $user.displayName -BackgroundColor:DarkMagenta -ForegroundColor:Yellow
+
+    $altEmail = ""
+    try
+    {
+        #get the info from MSOL on methods and location
+        $methodsettings = Get-MsolUser -UserPrincipalName $user.userPrincipalName -ErrorAction Stop | Select-Object -ExpandProperty StrongAuthenticationMethods #$user.userPrincipalName | Select-Object -ExpandProperty StrongAuthenticationMethods 
+    }
+    catch
+    {
+        $SkipErroredUser = $true
+        #$user.userPrincipalName
+        Write-Host "Error on Lookup for User:" $user.userPrincipalName " is in log file"-BackgroundColor:Red -ForegroundColor:White
+        $ErrorUPN = $user.userPrincipalName
+        Add-Content $targetFile1 $ErrorUPN
+    }
+
+    if($SkipErroredUser)
+    {
+        Write-Host "Skipping Bad user" -BackgroundColor Red -ForegroundColor White
+    }
+    else
+    {
+
+    $office = Get-MsolUser -UserPrincipalName $user.userPrincipalName | Select-Object Office #$user.userPrincipalName | Select-Object Office
+    $altEmail = Get-MsolUser -UserPrincipalName $user.userPrincipalName | Select-Object AlternateEmailAddresses #$user.userPrincipalName | Select-Object AlternateEmailAddresses
+    
+    ###########
+    #
+    # find which method is set to default
+    #
+    ###########
+        foreach($method in $methodsettings)
+        {
+    
+            if($method.IsDefault -eq 'True')
+            {
+                $userMethod = $method.MethodType
+            }
+
+            if($method.MethodType -eq 'PhoneAppNotification')
+            {
+                $userHavePush = 'True'
+            }
+    
+        }##// Method Default check
+    ###########
+    #
+    # 
+    #
+    ###########
+
+    ###########
+    #
+    # Office checking 
+    #
+    ###########
+        $userupn = $user.userPrincipalName.ToString()
+        $userdisplay = $user.displayName
+        if($office.office -eq $null)
+        {
+           $office = 'Null'
+        }
+        else
+        {
+            $office = $office.office.tostring()
+        }
+    ###########
+    #
+    # 
+    #
+    ###########
+
+    ###########
+    #
+    # Graph Call 
+    #
+    ###########
+
+    #header token
+    $headers  = @{Authorization = "Bearer $($MSALtoken.accesstoken)" }
+    
+    #user we are checking 
+    $UPN = $user.userPrincipalName.tostring()
+
+    #api endpoint
+    $apiUrl = "https://graph.microsoft.com/beta/users/$($UPN)/authentication/methods"
+
+    # body of request
+    $RequestBody = @{
+
+                Uri = $apiUrl
+                headers  = $headers
+                method = 'GET'
+                Contenttype = "application/json" 
+       
+    }
+    #//
+
+    #return response
+    $Response = Invoke-RestMethod @RequestBody
+
+    ###########
+    #
+    # Auth App Type check
+    #
+    ###########
+    $StaleMSAuthCnt = 0
+    $StaleAuthCnt = 0
+        foreach($item in $Response.value)
+        {
+
+            if($item.'@odata.type' -eq "#microsoft.graph.microsoftAuthenticatorAuthenticationMethod")
+            {
+                #Write-Host "MS Authenticator App"
+                $msAuthApp = "True"
+                $StaleMSAuthCnt++
+            }
+    
+            if($item.'@odata.type' -eq "#microsoft.graph.softwareOathAuthenticationMethod")
+            {
+                #Write-Host "Authenticator App"
+                $otherAuthApp = "True"
+                $StaleAuthCnt++
+
+            }
+
+
+        }##// Auth Method Type
+    ###########
+    #
+    # 
+    #
+    ###########
+
+    ###########
+    #
+    # Azure AD Phone Graph Call
+    #
+    ###########
+    #header token
+    $headers  = @{Authorization = "Bearer $($MSALtoken.accesstoken)" }
+    
+    #user we are checking 
+    $UPN = $user.userPrincipalName.tostring()
+
+    #api endpoint
+    $apiUrl = "https://graph.microsoft.com/v1.0/users/$($UPN)"
+
+    # body of request
+    $RequestBody = @{
+
+                Uri = $apiUrl
+                headers  = $headers
+                method = 'GET'
+                Contenttype = "application/json" 
+       
+    }
+    #//
+
+    #return response
+    $ADLookUp = Invoke-RestMethod @RequestBody
+
+    $ADOfficePhone = "" 
+    $ADBizPhone = ""
+
+    foreach($thing in $ADLookUp)
+    {
+        $ADOfficePhone = $thing.businessPhones
+        $ADBizPhone = $thing.mobilePhone
+    }
+
+
+    ###########
+    #
+    # 
+    #
+    ###########
+
+    ###########
+    #
+    # making csv file
+    #
+    ###########
+    
+    $UserLicenseGroup = $user.Group
+    $MFAMethodID = ""
+    $MethodsDisplayName = ""
+    $MethodDeviceTag = ""
+    $MethodCreatedDate = ""
+    $MicrosoftMethodType = ""
+    $MethodEmail = ""
+    $MethodPhoneNumber = ""
+    $MethodPhoneType = ""
+    if($altEmail.AlternateEmailAddresses -eq $null)
+    {
+        $altEmail = ""
+    }
+    else
+    {
+        $altEmail = ""
+    }
+    $line = "$UserLicenseGroup,$userupn,$userdisplay,$ADBizPhone,$ADOfficePhone,$altEmail,$userMethod,$userHavePush,$msAuthApp,$otherAuthApp,$StaleMSAuthCnt,$StaleAuthCnt,$office,$MFAMethodID,$MethodsDisplayName,$MethodDeviceTag,$MethodCreatedDate,$MethodEmail,$MicrosoftMethodType,$MethodPhoneNumber,$MethodPhoneType"
+    if($ADOfficePhone -eq $null)
+    {
+        $ADOfficePhone = ""
+    }
+    else
+    {
+        if($ADOfficePhone.Length -eq 0)
+        {
+            $ADOfficePhone = ""
+
+        }
+        else
+        {
+            $ADOfficePhone = $ADOfficePhone.Get(0)
+        }
+    }
+    if($ADBizPhone -eq $null)
+    {
+        $ADBizPhone = ""
+    }
+    ###########
+    #
+    # making xlsx file
+    #
+    ###########
+    $FileData = New-Object psobject
+    $FileData | add-member -MemberType NoteProperty -Name LicenseGroup -Value $UserLicenseGroup -ErrorAction SilentlyContinue
+    $FileData | add-member -MemberType NoteProperty -Name UPN -Value $userupn.ToString() -ErrorAction SilentlyContinue
+    $FileData | add-member -MemberType NoteProperty -Name DisplayName -Value $userdisplay.ToString() -ErrorAction SilentlyContinue
+    $FileData | add-member -MemberType NoteProperty -Name ADUserPhoneNumber -Value $ADBizPhone.ToString() -ErrorAction SilentlyContinue
+    $FileData | add-member -MemberType NoteProperty -Name ADUserOfficeNumber -Value $ADOfficePhone -ErrorAction SilentlyContinue
+    $FileData | add-member -MemberType NoteProperty -Name ADAlternateEmail -Value  $altEmail.ToString() -ErrorAction SilentlyContinue
+    $FileData | add-member -MemberType NoteProperty -Name DefaultMethodType -Value $userMethod.ToString() -ErrorAction SilentlyContinue
+    $FileData | add-member -MemberType NoteProperty -Name HasAppPushNotifications -Value $userHavePush.ToString() -ErrorAction SilentlyContinue
+    $FileData | add-member -MemberType NoteProperty -Name 'MS AuthApp' -Value $msAuthApp -ErrorAction SilentlyContinue
+    $FileData | add-member -MemberType NoteProperty -Name 'Other AuthApp' -Value $otherAuthApp -ErrorAction SilentlyContinue
+    $FileData | add-member -MemberType NoteProperty -Name MultipleMSAuthApps -Value $StaleMSAuthCnt.ToString() -ErrorAction SilentlyContinue
+    $FileData | add-member -MemberType NoteProperty -Name MultipleAuthApps -Value $StaleAuthCnt.ToString() -ErrorAction SilentlyContinue
+    $FileData | add-member -MemberType NoteProperty -Name OfficeLocaiton -Value $office.ToString() -ErrorAction SilentlyContinue
+    $FileData | add-member -MemberType NoteProperty -Name MFAMethodID -Value $MFAMethodID.ToString() -ErrorAction SilentlyContinue
+    $FileData | add-member -MemberType NoteProperty -Name MethodsDisplayName -Value $MethodsDisplayName.ToString() -ErrorAction SilentlyContinue
+    $FileData | add-member -MemberType NoteProperty -Name MethodDeviceTag -Value $MethodDeviceTag.ToString() -ErrorAction SilentlyContinue
+    $FileData | add-member -MemberType NoteProperty -Name MethodCreatedDate -Value $MethodCreatedDate.ToString() -ErrorAction SilentlyContinue
+    $FileData | add-member -MemberType NoteProperty -Name MethodEmail -Value $MethodEmail.ToString() -ErrorAction SilentlyContinue
+    $FileData | add-member -MemberType NoteProperty -Name MicrosoftMethodType -Value $MicrosoftMethodType.ToString() -ErrorAction SilentlyContinue
+    $FileData | add-member -MemberType NoteProperty -Name MethodPhoneNumber -Value $MethodPhoneNumber.ToString() -ErrorAction SilentlyContinue
+    $FileData | add-member -MemberType NoteProperty -Name MethodPhoneType -Value $MethodPhoneType.ToString() -ErrorAction SilentlyContinue
+
+    $File += $FileData 
+
+    Write-Host "Details:" -BackgroundColor:DarkYellow -ForegroundColor:DarkGreen
+    Write-Host $line -BackgroundColor:DarkCyan -ForegroundColor:Yellow
+
+    #add in the first part of the users information       
+    Add-Content $targetFile $line
+
+    $userMethod = ""
+    $userHavePush = ""
+    $msAuthApp = ""
+    $otherAuthApp = ""
+    $StaleMSAuthCnt = ""
+    $StaleAuthCnt = ""
+    $office = ""
+    $altEmail = ""
+    $ADBizPhone = ""
+    $ADOfficePhone = ""
+
+    $MFAMethodID = ""
+    $MethodsDisplayName = ""
+    $MethodDeviceTag = ""
+    $MethodCreatedDate = ""
+    $MethodEmail = ""
+    $MicrosoftMethodType = ""
+    $MethodPhoneType = ""
+    $MethodPhoneNumber = ""
+
+    #creating the second and or multiple lines of user method infomation
+    foreach($item in $Response.value)
+    {
+        if($item.'@odata.type' -eq "#microsoft.graph.microsoftAuthenticatorAuthenticationMethod")
+        {
+            $MFAMethodID = $item.id
+            $MethodsDisplayName = $item.displayname
+            $MethodDeviceTag = $item.deviceTag
+            $MethodCreatedDate = $item.createdDateTime
+            if($MethodCreatedDate -eq $null)
+            {
+                $MethodCreatedDate = ""
+            }
+            if($MethodsDisplayName -eq $null)
+            {
+                $MethodsDisplayName = ""
+            }
+            if($MethodDeviceTag -eq $null)
+            {
+                $MethodDeviceTag = ""
+            }
+            $MicrosoftMethodType = "Microsoft Authenticator"
+            $line = "$UserLicenseGroup,$userupn,$userdisplay,$ADBizPhone,$ADOfficePhone,$altEmail,$userMethod,$userHavePush,$msAuthApp,$otherAuthApp,$StaleMSAuthCnt,$StaleAuthCnt,$office,$MFAMethodID,$MethodsDisplayName,$MethodDeviceTag,$MethodCreatedDate,$MethodEmail,$MicrosoftMethodType,$MethodPhoneNumber,$MethodPhoneType"
+            #$line = "$userupn,$userdisplay,$userMethod,$userHavePush,$msAuthApp,$otherAuthApp,$StaleMSAuthCnt,$StaleAuthCnt,$office,$MFAMethodID,$MethodsDisplayName,$MethodDeviceTag,$MethodCreatedDate,$MethodEmail,$MicrosoftMethodType"
+            Add-Content $targetFile $line
+
+            $FileData = New-Object psobject
+            $FileData | add-member -MemberType NoteProperty -Name LicenseGroup -Value $UserLicenseGroup -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name UPN -Value $userupn.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name DisplayName -Value $userdisplay.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name ADUserPhoneNumber -Value $ADBizPhone.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name ADUserOfficeNumber -Value $ADOfficePhone -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name ADAlternateEmail -Value  $altEmail.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name DefaultMethodType -Value $userMethod.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name HasAppPushNotifications -Value $userHavePush.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name 'MS AuthApp' -Value $msAuthApp -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name 'Other AuthApp' -Value $otherAuthApp -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MultipleMSAuthApps -Value $StaleMSAuthCnt.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MultipleAuthApps -Value $StaleAuthCnt.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name OfficeLocaiton -Value $office.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MFAMethodID -Value $MFAMethodID.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodsDisplayName -Value $MethodsDisplayName.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodDeviceTag -Value $MethodDeviceTag.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodCreatedDate -Value $MethodCreatedDate.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodEmail -Value $MethodEmail.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MicrosoftMethodType -Value $MicrosoftMethodType.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodPhoneNumber -Value $MethodPhoneNumber.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodPhoneType -Value $MethodPhoneType.ToString() -ErrorAction SilentlyContinue
+
+            $File += $FileData 
+    
+        }
+        if($item.'@odata.type' -eq "#microsoft.graph.softwareOathAuthenticationMethod")
+        {
+            $MFAMethodID = $item.id
+            $MethodsDisplayName = $item.displayname
+            $MethodDeviceTag = $item.deviceTag
+            $MethodCreatedDate = $item.createdDateTime
+            if($MethodCreatedDate -eq $null)
+            {
+                $MethodCreatedDate = ""
+            }
+            if($MethodsDisplayName -eq $null)
+            {
+                $MethodsDisplayName = ""
+            }
+            if($MethodDeviceTag -eq $null)
+            {
+                $MethodDeviceTag = ""
+            }
+            $MicrosoftMethodType = "Authenticator App"
+            $line = "$UserLicenseGroup,$userupn,$userdisplay,$ADBizPhone,$ADOfficePhone,$altEmail,$userMethod,$userHavePush,$msAuthApp,$otherAuthApp,$StaleMSAuthCnt,$StaleAuthCnt,$office,$MFAMethodID,$MethodsDisplayName,$MethodDeviceTag,$MethodCreatedDate,$MethodEmail,$MicrosoftMethodType,$MethodPhoneNumber,$MethodPhoneType"
+            #$line = "$userupn,$userdisplay,$userMethod,$userHavePush,$msAuthApp,$otherAuthApp,$StaleMSAuthCnt,$StaleAuthCnt,$office,$MFAMethodID,$MethodsDisplayName,$MethodDeviceTag,$MethodCreatedDate,$MethodEmail,$MicrosoftMethodType"
+            Add-Content $targetFile $line
+
+            $FileData = New-Object psobject
+            $FileData | add-member -MemberType NoteProperty -Name LicenseGroup -Value $UserLicenseGroup -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name UPN -Value $userupn.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name DisplayName -Value $userdisplay.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name ADUserPhoneNumber -Value $ADBizPhone.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name ADUserOfficeNumber -Value $ADOfficePhone -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name ADAlternateEmail -Value  $altEmail.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name DefaultMethodType -Value $userMethod.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name HasAppPushNotifications -Value $userHavePush.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name 'MS AuthApp' -Value $msAuthApp -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name 'Other AuthApp' -Value $otherAuthApp -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MultipleMSAuthApps -Value $StaleMSAuthCnt.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MultipleAuthApps -Value $StaleAuthCnt.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name OfficeLocaiton -Value $office.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MFAMethodID -Value $MFAMethodID.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodsDisplayName -Value $MethodsDisplayName.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodDeviceTag -Value $MethodDeviceTag.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodCreatedDate -Value $MethodCreatedDate.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodEmail -Value $MethodEmail.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MicrosoftMethodType -Value $MicrosoftMethodType.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodPhoneNumber -Value $MethodPhoneNumber.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodPhoneType -Value $MethodPhoneType.ToString() -ErrorAction SilentlyContinue
+
+            $File += $FileData 
+        } 
+        if($item.'@odata.type' -eq "#microsoft.graph.emailAuthenticationMethod")
+        {
+            $MFAMethodID = $item.id
+            $MethodEmail = $item.emailAddress
+            $MicrosoftMethodType = "Email"
+            $line = "$UserLicenseGroup,$userupn,$userdisplay,$ADBizPhone,$ADOfficePhone,$altEmail,$userMethod,$userHavePush,$msAuthApp,$otherAuthApp,$StaleMSAuthCnt,$StaleAuthCnt,$office,$MFAMethodID,$MethodsDisplayName,$MethodDeviceTag,$MethodCreatedDate,$MethodEmail,$MicrosoftMethodType,$MethodPhoneNumber,$MethodPhoneType"            
+            #$line = "$userupn,$userdisplay,$userMethod,$userHavePush,$msAuthApp,$otherAuthApp,$StaleMSAuthCnt,$StaleAuthCnt,$office,$MFAMethodID,$MethodsDisplayName,$MethodDeviceTag,$MethodCreatedDate,$MethodEmail,$MicrosoftMethodType"
+            Add-Content $targetFile $line
+
+            $FileData = New-Object psobject
+            $FileData | add-member -MemberType NoteProperty -Name LicenseGroup -Value $UserLicenseGroup -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name UPN -Value $userupn.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name DisplayName -Value $userdisplay.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name ADUserPhoneNumber -Value $ADBizPhone.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name ADUserOfficeNumber -Value $ADOfficePhone -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name ADAlternateEmail -Value  $altEmail.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name DefaultMethodType -Value $userMethod.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name HasAppPushNotifications -Value $userHavePush.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name 'MS AuthApp' -Value $msAuthApp -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name 'Other AuthApp' -Value $otherAuthApp -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MultipleMSAuthApps -Value $StaleMSAuthCnt.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MultipleAuthApps -Value $StaleAuthCnt.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name OfficeLocaiton -Value $office.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MFAMethodID -Value $MFAMethodID.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodsDisplayName -Value $MethodsDisplayName.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodDeviceTag -Value $MethodDeviceTag.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodCreatedDate -Value $MethodCreatedDate.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodEmail -Value $MethodEmail.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MicrosoftMethodType -Value $MicrosoftMethodType.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodPhoneNumber -Value $MethodPhoneNumber.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodPhoneType -Value $MethodPhoneType.ToString() -ErrorAction SilentlyContinue
+
+            $File += $FileData 
+
+        }
+        if($item.'@odata.type' -eq "#microsoft.graph.phoneAuthenticationMethod")
+        {
+            $MFAMethodID = $item.id
+            $MethodPhoneNumber = $item.phoneNumber
+            $MethodPhoneType = $item.phoneType
+            $MicrosoftMethodType = "Phone"
+            $line = "$UserLicenseGroup,$userupn,$userdisplay,$ADBizPhone,$ADOfficePhone,$altEmail,$userMethod,$userHavePush,$msAuthApp,$otherAuthApp,$StaleMSAuthCnt,$StaleAuthCnt,$office,$MFAMethodID,$MethodsDisplayName,$MethodDeviceTag,$MethodCreatedDate,$MethodEmail,$MicrosoftMethodType,$MethodPhoneNumber,$MethodPhoneType"            
+            #$line = "$userupn,$userdisplay,$userMethod,$userHavePush,$msAuthApp,$otherAuthApp,$StaleMSAuthCnt,$StaleAuthCnt,$office,$MFAMethodID,$MethodsDisplayName,$MethodDeviceTag,$MethodCreatedDate,$MethodEmail,$MicrosoftMethodType"
+            Add-Content $targetFile $line
+
+            $FileData = New-Object psobject
+            $FileData | add-member -MemberType NoteProperty -Name LicenseGroup -Value $UserLicenseGroup -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name UPN -Value $userupn.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name DisplayName -Value $userdisplay.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name ADUserPhoneNumber -Value $ADBizPhone.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name ADUserOfficeNumber -Value $ADOfficePhone -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name ADAlternateEmail -Value  $altEmail.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name DefaultMethodType -Value $userMethod.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name HasAppPushNotifications -Value $userHavePush.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name 'MS AuthApp' -Value $msAuthApp -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name 'Other AuthApp' -Value $otherAuthApp -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MultipleMSAuthApps -Value $StaleMSAuthCnt.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MultipleAuthApps -Value $StaleAuthCnt.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name OfficeLocaiton -Value $office.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MFAMethodID -Value $MFAMethodID.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodsDisplayName -Value $MethodsDisplayName.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodDeviceTag -Value $MethodDeviceTag.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodCreatedDate -Value $MethodCreatedDate.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodEmail -Value $MethodEmail.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MicrosoftMethodType -Value $MicrosoftMethodType.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodPhoneNumber -Value $MethodPhoneNumber.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodPhoneType -Value $MethodPhoneType.ToString() -ErrorAction SilentlyContinue
+
+            $File += $FileData 
+            
+        }
+        if($item.'@odata.type' -eq "#microsoft.graph.windowsHelloForBusinessAuthenticationMethod")
+        {
+            $MFAMethodID = $item.id
+            $MethodCreatedDate = $item.createdDateTime
+            if($MethodCreatedDate -eq $null)
+            {
+                $MethodCreatedDate = ""
+            }
+            $MicrosoftMethodType = "WHfB Method"
+            $line = "$UserLicenseGroup,$userupn,$userdisplay,$ADBizPhone,$ADOfficePhone,$altEmail,$userMethod,$userHavePush,$msAuthApp,$otherAuthApp,$StaleMSAuthCnt,$StaleAuthCnt,$office,$MFAMethodID,$MethodsDisplayName,$MethodDeviceTag,$MethodCreatedDate,$MethodEmail,$MicrosoftMethodType,$MethodPhoneNumber,$MethodPhoneType"            
+            #$line = "$userupn,$userdisplay,$userMethod,$userHavePush,$msAuthApp,$otherAuthApp,$StaleMSAuthCnt,$StaleAuthCnt,$office,$MFAMethodID,$MethodsDisplayName,$MethodDeviceTag,$MethodCreatedDate,$MethodEmail,$MicrosoftMethodType"
+            Add-Content $targetFile $line
+
+            $FileData = New-Object psobject
+            $FileData | add-member -MemberType NoteProperty -Name LicenseGroup -Value $UserLicenseGroup -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name UPN -Value $userupn.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name DisplayName -Value $userdisplay.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name ADUserPhoneNumber -Value $ADBizPhone.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name ADUserOfficeNumber -Value $ADOfficePhone -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name ADAlternateEmail -Value  $altEmail.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name DefaultMethodType -Value $userMethod.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name HasAppPushNotifications -Value $userHavePush.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name 'MS AuthApp' -Value $msAuthApp -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name 'Other AuthApp' -Value $otherAuthApp -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MultipleMSAuthApps -Value $StaleMSAuthCnt.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MultipleAuthApps -Value $StaleAuthCnt.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name OfficeLocaiton -Value $office.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MFAMethodID -Value $MFAMethodID.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodsDisplayName -Value $MethodsDisplayName.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodDeviceTag -Value $MethodDeviceTag.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodCreatedDate -Value $MethodCreatedDate.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodEmail -Value $MethodEmail.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MicrosoftMethodType -Value $MicrosoftMethodType.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodPhoneNumber -Value $MethodPhoneNumber.ToString() -ErrorAction SilentlyContinue
+            $FileData | add-member -MemberType NoteProperty -Name MethodPhoneType -Value $MethodPhoneType.ToString() -ErrorAction SilentlyContinue
+
+            $File += $FileData 
+        }
+        
+        $MFAMethodID = ""
+        $MethodsDisplayName = ""
+        $MethodDeviceTag = ""
+        $MethodCreatedDate = ""
+        $MethodEmail = ""
+        $MicrosoftMethodType = ""
+        $MethodPhoneType = ""
+        $MethodPhoneNumber = ""
+    }
+
+  
+    ###########
+    #
+    # resetting file info
+    #
+    ###########
+    $userupn = 'Null'
+    $userMethod = 'Null'
+    $userdisplay = 'Null'
+    $userHavePush = 'Null'
+    $office = 'Null'
+    $msAuthApp = 'Null'
+    $otherAuthApp = 'Null'
+    $UserLicenseGroup = ""
+
+    # display counter increase 
+    $count++
+
+    # refresh the token every 30mins
+    $RefreshDiff = New-TimeSpan -Start $TokenRefreshTime -End (Get-Date)
+    if ($RefreshDiff.Minutes -ge 30)
+    {
+        $MSALtoken = RefreshToken
+        $TokenRefreshTime = Get-Date
+        
+    }
+    # refresh the token every 1000 operations 
+    $refreshOpCount++
+    if($refreshOpCount -eq 1000)
+    {
+        $MSALtoken = RefreshToken
+        $refreshOpCount = 0
+    }
+
+  }##// skip bad user IF check
+
+}##// User in list
+
+$File | Export-Excel -Path $xlFile.ToString() -AutoSize -AutoFilter -Show -FreezeTopRow -PivotRows 'DefaultMethodType' -PivotTotals Columns -IncludePivotChart 
+Write-Host "Finished" -BackgroundColor:Green -ForegroundColor:Blue
+$diff = New-TimeSpan -Start $ScriptRunTime -End (Get-Date)
+Write-Host "Run Time:" "Days:"$diff.Days "Hours:"$diff.Hours "Minutes:"$diff.Minutes "Seconds:"$diff.Seconds
+
+
+
+
+
+
+
