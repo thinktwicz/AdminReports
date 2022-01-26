@@ -12,6 +12,7 @@ $list = Import-Csv ''#UserPrincipalName must be used for look in what ever list 
 
 $TokenRefreshTime = Get-Date
 
+# app permisisons or admin account  -https://docs.microsoft.com/en-us/graph/api/signin-list?view=graph-rest-1.0&tabs=http
 Import-module MSAL.PS
 $clientid = ""
 $tenantid = ""
