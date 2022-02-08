@@ -71,8 +71,50 @@ foreach($item in $list)
     }
     #//
 
-    #return response
-    $Response = Invoke-RestMethod @RequestBody
+    try
+    {
+        $Response = Invoke-RestMethod @RequestBody -ErrorAction Stop
+    }
+    catch [System.Net.WebException]
+    {
+        Write-Verbose "Exception being Handled"
+        $statusCode = [int]$_.Exception.Response.StatusCode
+        Write-Output $statusCode
+        Write-Output $_.Exception.Message
+
+
+        if($statusCode -eq 401 -and $oneSuccessfulFetch)
+        {
+            # Token might have expired! Renew token and try again
+            Write-Verbose "Exception being Handled - Token being refreshed"
+
+            $MSALtoken = RefreshToken
+
+    
+
+        }
+        elseif($statusCode -eq 429 -or $statusCode -eq 504 -or $statusCode -eq 503)
+        {
+            Write-Verbose "Exception being Handled - Throttled sleep for a bit"
+
+            # throttled request or a temporary issue, wait for a few seconds and retry
+            Start-Sleep -Seconds 5
+            $Response = Invoke-RestMethod @RequestBody #-ErrorAction Continue
+
+       
+        }
+        elseif($statusCode -eq 403 -or $statusCode -eq 400 -or $statusCode -eq 401)
+        {
+            Write-Verbose "Exception being Handled - This Blew up sorry bad request"
+            
+            Write-Output "Please check the permissions of the user"
+            Start-Sleep -Seconds 5
+            $Response = Invoke-RestMethod @RequestBody #-ErrorAction Continue
+
+            #break;
+        }
+        
+    }
 
     
 
@@ -141,7 +183,7 @@ foreach($item in $list)
         $displayname,$UPN,$LogonEventID,$lastSignDate,$lastNonSignID,$lastNonSignDate = $null
 
 		# WE MUST SLEEP - shh dont wake the throttle baby - 5 secs unless this one can get a throttle pass \(^-^)/
-		Start-Sleep -Seconds 5
+		#Start-Sleep -Seconds 5
 
     }
 
