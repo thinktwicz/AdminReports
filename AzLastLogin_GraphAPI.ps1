@@ -71,7 +71,7 @@ foreach($item in $list)
     }
     #//
 
-    try
+   try
     {
         $Response = Invoke-RestMethod @RequestBody -ErrorAction Stop
     }
@@ -79,13 +79,17 @@ foreach($item in $list)
     {
         Write-Verbose "Exception being Handled"
         $statusCode = [int]$_.Exception.Response.StatusCode
-        Write-Output $statusCode
-        Write-Output $_.Exception.Message
+        Write-Verbose $statusCode
+        Write-Verbose $_.Exception.Message
 
 
-        if($statusCode -eq 401 -and $oneSuccessfulFetch)
+        if($statusCode -eq 401)
         {
             # Token might have expired! Renew token and try again
+            #$authResult = $authContext.AcquireToken($MSGraphURI, $clientId, $redirectUri, "Auto")
+            #$token = $authResult.AccessToken
+            #$headers = Get-Headers($token)
+            #$oneSuccessfulFetch = $False
             Write-Verbose "Exception being Handled - Token being refreshed"
 
             $MSALtoken = RefreshToken
@@ -98,12 +102,32 @@ foreach($item in $list)
             Write-Verbose "Exception being Handled - Throttled sleep for a bit"
 
             # throttled request or a temporary issue, wait for a few seconds and retry
-            Start-Sleep -Seconds 5
-            $Response = Invoke-RestMethod @RequestBody #-ErrorAction Continue
+            Start-Sleep -Seconds 120
+           
+            while($true)
+            {
+                try
+                {
+                    $Response = Invoke-RestMethod @RequestBody -ErrorAction Stop
 
-       
+                    #we made it to this line in the code no more 429 throttle break from looping
+                    break;
+                }
+                catch [System.Net.WebException]
+                {
+                    if($statusCode -eq 429)
+                    {
+                    Write-Verbose "Exception loop starting to while true sleep"
+                    $statusCode = [int]$_.Exception.Response.StatusCode
+                    Write-Verbose $statusCode
+                    Write-Verbose $_.Exception.Message
+                    Start-Sleep -Seconds 180 #3mins
+                    }
+                }
+            }
+            
         }
-        elseif($statusCode -eq 403 -or $statusCode -eq 400 -or $statusCode -eq 401)
+        elseif($statusCode -eq 403 -or  $statusCode -eq 401)
         {
             Write-Verbose "Exception being Handled - This Blew up sorry bad request"
             
@@ -113,7 +137,15 @@ foreach($item in $list)
 
             #break;
         }
-        
+		elseif($statusCode -eq 400)
+		{
+			Write-Verbose "Exception being Handled - This Blew up sorry bad request"
+            
+            Write-Output "400 log and skip to next user"
+            Write-Output "Bad request for USER: $UPN $count"
+			$Response = $null
+
+		}
     }
 
     
