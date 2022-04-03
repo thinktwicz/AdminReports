@@ -1,4 +1,28 @@
 
+
+
+
+$TokenRefreshTime = Get-Date
+
+# app permisisons or admin account  -https://docs.microsoft.com/en-us/graph/api/signin-list?view=graph-rest-1.0&tabs=http
+Import-module MSAL.PS
+$clientid = ""
+$tenantid = ""
+$MSALtoken = Get-MsalToken  -ClientId $clientID -TenantId $tenantID -ClientSecret (ConvertTo-SecureString '' -AsPlainText -Force)
+
+#$MSALtoken = Get-MsalToken -Interactive -ClientId $clientID -TenantId $tenantID
+
+
+
+# helper function for a new token 
+function RefreshToken()
+{
+    return $MSALtoken = Get-MsalToken -ForceRefresh -ClientId $clientID -TenantId $tenantID -ClientSecret (ConvertTo-SecureString '' -AsPlainText -Force)
+}
+
+
+
+
 #https://docs.microsoft.com/en-us/graph/api/virtualendpoint-list-cloudpcs?view=graph-rest-beta&tabs=http
 
 $apiUrl = "https://graph.microsoft.com/beta/deviceManagement/virtualEndpoint/cloudPCs"
