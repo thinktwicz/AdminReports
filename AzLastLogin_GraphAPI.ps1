@@ -58,6 +58,7 @@ foreach($item in $list)
 	Write-Output "User: " $UPN $count
 
     #api endpoint
+    #"https://graph.microsoft.com/beta/users?`$filter=(id eq '$ID')&`$select=displayName,signInActivity"
     $apiUrl = "https://graph.microsoft.com/beta/users?`$filter=startswith(userprincipalname,'$UPN')&`$select=displayName,signInActivity"
 
     # body of request
