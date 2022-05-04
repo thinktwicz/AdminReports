@@ -1,2 +1,2 @@
 DisplayName,UPN,lastSignInRequestId,LastDateInteractive,lastNonInteractiveSignInRequestId,LastDateNonInteractive,OnPremADLastLogon,OnPremCreated,EmployeeID,EmployeeNumber,EmployeeType,Mail,ID,DirSyncEnabled,UserType
-John Smith, JSmith@Domain.com,1j1j1,2242022,2k2k2k,2242022,22422022,151997,123,123,Employee,jsmith@domain.com,azureidguid,true,guest
+John Smith, JSmith@Domain.com,1j1j1,2242022,2k2k2k,2242022,22422022,151997,123,123,Guest-Domain,jsmith@domain.com,azureidguid,true,guest
